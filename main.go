@@ -160,7 +160,7 @@ func handleQngWeb3Rpc(
 }
 func NewMCPServer() *MCPServer {
 	mcpServer := server.NewMCPServer(
-		"example-server",
+		"qng-mcp-server",
 		"1.0.0",
 		server.WithResourceCapabilities(true, true),
 		server.WithPromptCapabilities(true),
