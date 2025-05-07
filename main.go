@@ -95,22 +95,6 @@ func authFromEnv(ctx context.Context) context.Context {
 	return withAuthKey(ctx, os.Getenv("API_KEY"))
 }
 
-type response struct {
-	Args    map[string]interface{} `json:"args"`
-	Headers map[string]string      `json:"headers"`
-}
-
-// Block represents a block in the blockchain.
-type Block struct {
-	Order int
-	Data  string // or any other fields relevant to your blockchain
-}
-
-// Blockchain represents the blockchain.
-type Blockchain struct {
-	Blocks []Block
-}
-
 type MCPServer struct {
 	server *server.MCPServer
 }

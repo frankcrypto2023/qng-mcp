@@ -2,6 +2,10 @@
 The mcp server for qng supports the Model Context Protocol（MCP）protocol 
 
 
+## compile mcphost
+
+- see https://github.com/mark3labs/mcphost
+
 ## use stdio mode
 
 ```json
