@@ -336,27 +336,3 @@ func main() {
 		)
 	}
 }
-
-func extractMethods(jsCode string) []map[string]interface{} {
-	// Logic to extract methods from jsCode
-	// This is a placeholder for the actual implementation
-	return []map[string]interface{}{
-		{"name": "getPeerInfo", "call": "qng_getPeerInfo", "params": 2},
-		{"name": "addPeer", "call": "qng_addPeer", "params": 1},
-		// Add more methods as needed
-	}
-}
-
-func extractProperties(jsCode string) []map[string]interface{} {
-	// Logic to extract properties from jsCode
-	// This is a placeholder for the actual implementation
-	return []map[string]interface{}{
-		{"name": "getNodeInfo", "getter": "qng_getNodeInfo"},
-		// Add more properties as needed
-	}
-}
-
-func splitCamelCase(s string) string {
-	re := regexp.MustCompile("([a-z])([A-Z])")
-	return re.ReplaceAllString(s, "${1} ${2}")
-}
