@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -296,14 +297,33 @@ func main() {
 	)
 	flag.Parse()
 
+	// Print usage instructions
+	fmt.Println("\nUsage:")
+	fmt.Println("  -t, --transport  Transport type (stdio or sse)")
+	fmt.Println("  --rpc            QNG Web3 RPC URL")
+	fmt.Println("\nExample:")
+	fmt.Println("  ./qng-mcp -t stdio --rpc http://127.0.0.1:8545/")
+
+	// Print system status
+	fmt.Println("Starting QNG MCP Server...")
+	fmt.Printf("Transport type: %s\n", transport)
+	fmt.Printf("QNG Node Web3 RPC URL: %s\n", rpcUrl)
+
+	// Check configuration
+	if rpcUrl == "" {
+		log.Fatalf("Error: RPC URL is not configured. Please provide a valid RPC URL using the -rpc flag.")
+	}
+
 	s := NewMCPServer()
 
 	switch transport {
 	case "stdio":
+		fmt.Println("Running in stdio mode...")
 		if err := s.ServeStdio(); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}
 	case "sse":
+		fmt.Println("Running in SSE mode...")
 		sseServer := s.ServeSSE("localhost:8080")
 		log.Printf("SSE server listening on :8080")
 		if err := sseServer.Start(":8080"); err != nil {
@@ -315,4 +335,28 @@ func main() {
 			transport,
 		)
 	}
+}
+
+func extractMethods(jsCode string) []map[string]interface{} {
+	// Logic to extract methods from jsCode
+	// This is a placeholder for the actual implementation
+	return []map[string]interface{}{
+		{"name": "getPeerInfo", "call": "qng_getPeerInfo", "params": 2},
+		{"name": "addPeer", "call": "qng_addPeer", "params": 1},
+		// Add more methods as needed
+	}
+}
+
+func extractProperties(jsCode string) []map[string]interface{} {
+	// Logic to extract properties from jsCode
+	// This is a placeholder for the actual implementation
+	return []map[string]interface{}{
+		{"name": "getNodeInfo", "getter": "qng_getNodeInfo"},
+		// Add more properties as needed
+	}
+}
+
+func splitCamelCase(s string) string {
+	re := regexp.MustCompile("([a-z])([A-Z])")
+	return re.ReplaceAllString(s, "${1} ${2}")
 }
