@@ -44,7 +44,7 @@ type RPCError struct {
 }
 
 // JsonRpcResponse constructs and sends a JSON-RPC request and returns the response
-func JsonRpcResponse(method string, params []interface{}) ([]byte, error) {
+func JsonRpcResponse(url, method string, params []interface{}) ([]byte, error) {
 
 	// 构建 JSON-RPC 请求体
 	request := JSONRPCRequest{
@@ -152,7 +152,7 @@ func handleQngWeb3Rpc(
 			params = append(params, v)
 		}
 	}
-	body, err := JsonRpcResponse(method.Name, params)
+	body, err := JsonRpcResponse(rpcUrl, method.Name, params)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +169,10 @@ func NewMCPServer() *MCPServer {
 
 	mcpServer.AddTool(mcp.NewTool("get_block_by_order",
 		mcp.WithDescription("Retrieves a qng block by its order"),
+		mcp.WithString("rpc",
+			mcp.Description("Rpc url of the qng block details to retrieve"),
+			mcp.Required(),
+		),
 		mcp.WithNumber("order",
 			mcp.Description("Order of the qng block to retrieve"),
 			mcp.Required(),
@@ -176,13 +180,21 @@ func NewMCPServer() *MCPServer {
 	), handleGetBlockByOrderTool)
 
 	mcpServer.AddTool(mcp.NewTool("get_block_count",
-		mcp.WithDescription("Retrieves a qng block total count"),
+		mcp.WithString("rpc",
+			mcp.Description("Rpc url of the qng block latest total count to retrieve"),
+			mcp.Required(),
+		),
+		mcp.WithDescription("Retrieves a qng block latest total count"),
 	), handleGetBlockCount)
 
 	mcpServer.AddTool(mcp.NewTool("get_block_stateroot",
-		mcp.WithDescription("Retrieves a qng block stateroot by its order"),
+		mcp.WithDescription("Retrieves a qng block stateroot by its order and rpc"),
 		mcp.WithNumber("order",
 			mcp.Description("Order of the qng block stateroot to retrieve"),
+			mcp.Required(),
+		),
+		mcp.WithString("rpc",
+			mcp.Description("Rpc url of the qng block stateroot to retrieve"),
 			mcp.Required(),
 		),
 	), handleGetStateRoot)
@@ -246,7 +258,12 @@ func handleGetBlockByOrderTool(
 	if !ok {
 		return nil, fmt.Errorf("missing or invalid order")
 	}
-	body, err := JsonRpcResponse("qng_getBlockByOrder", []interface{}{order, true})
+	rpc, ok := request.Params.Arguments["rpc"]
+	if !ok {
+		log.Println("rpc", rpc)
+		return nil, fmt.Errorf("missing or invalid rpc")
+	}
+	body, err := JsonRpcResponse(rpc.(string), "qng_getBlockByOrder", []interface{}{order, true})
 	if err != nil {
 		return nil, err
 	}
@@ -259,11 +276,16 @@ func handleGetBlockCount(
 	ctx context.Context,
 	request mcp.CallToolRequest,
 ) (*mcp.CallToolResult, error) {
-	body, err := JsonRpcResponse("qng_getBlockCount", []interface{}{})
+	rpc, ok := request.Params.Arguments["rpc"]
+	if !ok {
+		log.Println("rpc", rpc)
+		return nil, fmt.Errorf("missing or invalid rpc")
+	}
+	body, err := JsonRpcResponse(rpc.(string), "qng_getBlockCount", []interface{}{})
 	if err != nil {
 		return nil, err
 	}
-
+	log.Println("handleGetBlockCount", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
@@ -274,10 +296,31 @@ func handleGetStateRoot(
 ) (*mcp.CallToolResult, error) {
 	order, ok := request.Params.Arguments["order"]
 	if !ok {
+		log.Println("order", order)
 		return nil, fmt.Errorf("missing or invalid order")
 	}
-	body, err := JsonRpcResponse("qng_getStateRoot", []interface{}{order, true})
+
+	rpc, ok := request.Params.Arguments["rpc"]
+	if !ok {
+		log.Println("rpc", rpc)
+		return nil, fmt.Errorf("missing or invalid rpc")
+	}
+	log.Println("order", order)
+	orderNum := int64(0)
+	switch order.(type) {
+	case int64:
+		orderNum = order.(int64)
+	case string:
+		orderNum, _ = strconv.ParseInt(order.(string), 10, 64)
+	case float64:
+		orderNum = int64(order.(float64))
+	default:
+		log.Println("order", order)
+		return nil, fmt.Errorf("missing or invalid order")
+	}
+	body, err := JsonRpcResponse(rpc.(string), "qng_getStateRoot", []interface{}{orderNum, true})
 	if err != nil {
+		log.Println("JsonRpcResponse", err)
 		return nil, err
 	}
 
