@@ -44,7 +44,7 @@ type RPCError struct {
 }
 
 // JsonRpcResponse constructs and sends a JSON-RPC request and returns the response
-func JsonRpcResponse(url, method string, params []interface{}) ([]byte, error) {
+func JsonRpcResponse(rpcurl, method string, params []interface{}) ([]byte, error) {
 
 	// 构建 JSON-RPC 请求体
 	request := JSONRPCRequest{
@@ -62,7 +62,7 @@ func JsonRpcResponse(url, method string, params []interface{}) ([]byte, error) {
 	}
 
 	// 发送 HTTP POST 请求
-	resp, err := http.Post(rpcUrl, "application/json", bytes.NewBuffer(requestBody))
+	resp, err := http.Post(rpcurl, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
 		// fmt.Println("Error sending HTTP request:", err)
 		return nil, err
@@ -305,7 +305,7 @@ func handleGetStateRoot(
 		log.Println("rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
-	log.Println("order", order)
+	log.Println("order", order, "rpc", rpc)
 	orderNum := int64(0)
 	switch order.(type) {
 	case int64:
@@ -323,7 +323,7 @@ func handleGetStateRoot(
 		log.Println("JsonRpcResponse", err)
 		return nil, err
 	}
-
+	log.Println("handleGetStateRoot", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
