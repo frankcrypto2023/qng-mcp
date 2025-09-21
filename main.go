@@ -7,18 +7,26 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/Qitmeer/qng/log"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
 // qng rpc url
 var rpcUrl = "http://127.0.0.1:8545/"
+
+// log level control
+var logLevel = "info"
+
+// Simple logging wrapper that can be replaced with QNG logging later
+// To use the actual QNG logging library, replace this with:
+// import "github.com/Qitmeer/qng/log"
+// and replace all log.* calls with log.* calls
 
 // JSONRPCRequest struct is used to construct JSON-RPC requests
 type JSONRPCRequest struct {
@@ -57,20 +65,20 @@ func JsonRpcResponse(rpcurl, method string, params []interface{}) ([]byte, error
 	// 将请求体编码为 JSON
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		// fmt.Println("Error marshaling JSON request:", err)
+		// log.Info("Error marshaling JSON request:", err)
 		return nil, err
 	}
 
 	// 发送 HTTP POST 请求
 	resp, err := http.Post(rpcurl, "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		// fmt.Println("Error sending HTTP request:", err)
+		// log.Info("Error sending HTTP request:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		// fmt.Println("Error reading response body:", err)
+		// log.Info("Error reading response body:", err)
 		return nil, err
 	}
 	return body, nil
@@ -213,7 +221,7 @@ func parseAndGenerateGoCode() []mcp.Tool {
 	ret := []mcp.Tool{}
 	methods, err := GetMethods()
 	if err != nil {
-		fmt.Println("Error:", err)
+		log.Info("Error:", err)
 		return nil
 	}
 	for _, m := range methods {
@@ -260,7 +268,7 @@ func handleGetBlockByOrderTool(
 	}
 	rpc, ok := request.Params.Arguments["rpc"]
 	if !ok {
-		log.Println("rpc", rpc)
+		log.Debug("rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
 	body, err := JsonRpcResponse(rpc.(string), "qng_getBlockByOrder", []interface{}{order, true})
@@ -278,14 +286,14 @@ func handleGetBlockCount(
 ) (*mcp.CallToolResult, error) {
 	rpc, ok := request.Params.Arguments["rpc"]
 	if !ok {
-		log.Println("rpc", rpc)
+		log.Debug("rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
 	body, err := JsonRpcResponse(rpc.(string), "qng_getBlockCount", []interface{}{})
 	if err != nil {
 		return nil, err
 	}
-	log.Println("handleGetBlockCount", string(body))
+	log.Debug("handleGetBlockCount", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
@@ -296,16 +304,16 @@ func handleGetStateRoot(
 ) (*mcp.CallToolResult, error) {
 	order, ok := request.Params.Arguments["order"]
 	if !ok {
-		log.Println("order", order)
+		log.Debug("order", order)
 		return nil, fmt.Errorf("missing or invalid order")
 	}
 
 	rpc, ok := request.Params.Arguments["rpc"]
 	if !ok {
-		log.Println("rpc", rpc)
+		log.Debug("rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
-	log.Println("order", order, "rpc", rpc)
+	log.Debug("order", order, "rpc", rpc)
 	orderNum := int64(0)
 	switch order.(type) {
 	case int64:
@@ -315,15 +323,15 @@ func handleGetStateRoot(
 	case float64:
 		orderNum = int64(order.(float64))
 	default:
-		log.Println("order", order)
+		log.Debug("order", order)
 		return nil, fmt.Errorf("missing or invalid order")
 	}
 	body, err := JsonRpcResponse(rpc.(string), "qng_getStateRoot", []interface{}{orderNum, true})
 	if err != nil {
-		log.Println("JsonRpcResponse", err)
+		log.Debug("JsonRpcResponse", err)
 		return nil, err
 	}
-	log.Println("handleGetStateRoot", string(body))
+	log.Debug("handleGetStateRoot", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
@@ -331,6 +339,7 @@ func main() {
 	var transport string
 	flag.StringVar(&transport, "t", "stdio", "Transport type (stdio or sse)")
 	flag.StringVar(&rpcUrl, "rpc", "http://127.0.0.1:8545/", "qng rpc url")
+	flag.StringVar(&logLevel, "loglevel", "info", "Log level (debug, info, warn, error)")
 	flag.StringVar(
 		&transport,
 		"transport",
@@ -338,43 +347,54 @@ func main() {
 		"Transport type (stdio or sse)",
 	)
 	flag.Parse()
-
+	// 设置日志等级为 DEBUG
+	lvl, err := log.LvlFromString(logLevel)
+	if err != nil {
+		log.Error("Error: Invalid log level:", err)
+		os.Exit(1)
+	}
+	log.Glogger().Verbosity(lvl)
 	// Print usage instructions
-	fmt.Println("\nUsage:")
-	fmt.Println("  -t, --transport  Transport type (stdio or sse)")
-	fmt.Println("  --rpc            QNG Web3 RPC URL")
-	fmt.Println("\nExample:")
-	fmt.Println("  ./qng-mcp -t stdio --rpc http://127.0.0.1:8545/")
+	log.Info("\nUsage:")
+	log.Info("  -t, --transport  Transport type (stdio or sse)")
+	log.Info("  --rpc            QNG Web3 RPC URL")
+	log.Info("  --loglevel       Log level (debug, info, warn, error)")
+	log.Info("\nExample:")
+	log.Info("  ./qng-mcp -t stdio --rpc http://127.0.0.1:8545/ --loglevel debug")
 
 	// Print system status
-	fmt.Println("Starting QNG MCP Server...")
-	fmt.Printf("Transport type: %s\n", transport)
-	fmt.Printf("QNG Node Web3 RPC URL: %s\n", rpcUrl)
+	log.Info("Starting QNG MCP Server...", "logLevel", logLevel)
+	log.Debug("Transport type", "Transport type", transport)
+	log.Debug("QNG Node Web3 RPC URL", "QNG Node Web3 RPC URL", rpcUrl)
 
 	// Check configuration
 	if rpcUrl == "" {
-		log.Fatalf("Error: RPC URL is not configured. Please provide a valid RPC URL using the -rpc flag.")
+		log.Error("Error: RPC URL is not configured. Please provide a valid RPC URL using the -rpc flag.")
+		os.Exit(1)
 	}
 
 	s := NewMCPServer()
 
 	switch transport {
 	case "stdio":
-		fmt.Println("Running in stdio mode...")
+		log.Info("Running in stdio mode...")
 		if err := s.ServeStdio(); err != nil {
-			log.Fatalf("Server error: %v", err)
+			log.Error("Server error: %v", err)
+			os.Exit(1)
 		}
 	case "sse":
-		fmt.Println("Running in SSE mode...")
+		log.Info("Running in SSE mode...")
 		sseServer := s.ServeSSE("localhost:8080")
-		log.Printf("SSE server listening on :8080")
+		log.Info("SSE server listening on :8080")
 		if err := sseServer.Start(":8080"); err != nil {
-			log.Fatalf("Server error: %v", err)
+			log.Error("Server error: %v", err)
+			os.Exit(1)
 		}
 	default:
-		log.Fatalf(
+		log.Error(
 			"Invalid transport type: %s. Must be 'stdio' or 'sse'",
 			transport,
 		)
+		os.Exit(1)
 	}
 }
