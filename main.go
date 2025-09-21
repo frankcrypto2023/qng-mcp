@@ -23,6 +23,9 @@ var rpcUrl = "http://127.0.0.1:8545/"
 // log level control
 var logLevel = "info"
 
+// current mcp server
+var currentMcpServer = "localhost:8080"
+
 // Simple logging wrapper that can be replaced with QNG logging later
 // To use the actual QNG logging library, replace this with:
 // import "github.com/Qitmeer/qng/log"
@@ -160,10 +163,12 @@ func handleQngWeb3Rpc(
 			params = append(params, v)
 		}
 	}
+	log.Debug("handleQngWeb3Rpc", "method", method.Name, "params", params)
 	body, err := JsonRpcResponse(rpcUrl, method.Name, params)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("handleQngWeb3Rpc", "result", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 func NewMCPServer() *MCPServer {
@@ -176,7 +181,7 @@ func NewMCPServer() *MCPServer {
 	)
 
 	mcpServer.AddTool(mcp.NewTool("get_block_by_order",
-		mcp.WithDescription("Retrieves a qng block by its order"),
+		mcp.WithDescription("Retrieves a qng block by its order and rpc"),
 		mcp.WithString("rpc",
 			mcp.Description("Rpc url of the qng block details to retrieve"),
 			mcp.Required(),
@@ -192,7 +197,7 @@ func NewMCPServer() *MCPServer {
 			mcp.Description("Rpc url of the qng block latest total count to retrieve"),
 			mcp.Required(),
 		),
-		mcp.WithDescription("Retrieves a qng block latest total count"),
+		mcp.WithDescription("Retrieves a qng block latest total count by rpc"),
 	), handleGetBlockCount)
 
 	mcpServer.AddTool(mcp.NewTool("get_block_stateroot",
@@ -268,14 +273,14 @@ func handleGetBlockByOrderTool(
 	}
 	rpc, ok := request.Params.Arguments["rpc"]
 	if !ok {
-		log.Debug("rpc", rpc)
+		log.Debug("handleGetBlockByOrderTool", "rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
 	body, err := JsonRpcResponse(rpc.(string), "qng_getBlockByOrder", []interface{}{order, true})
 	if err != nil {
 		return nil, err
 	}
-
+	log.Debug("handleGetBlockByOrderTool", "result", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
@@ -286,14 +291,14 @@ func handleGetBlockCount(
 ) (*mcp.CallToolResult, error) {
 	rpc, ok := request.Params.Arguments["rpc"]
 	if !ok {
-		log.Debug("rpc", rpc)
+		log.Debug("handleGetBlockCount", "rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
 	body, err := JsonRpcResponse(rpc.(string), "qng_getBlockCount", []interface{}{})
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("handleGetBlockCount", string(body))
+	log.Debug("handleGetBlockCount", "result", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
@@ -304,16 +309,16 @@ func handleGetStateRoot(
 ) (*mcp.CallToolResult, error) {
 	order, ok := request.Params.Arguments["order"]
 	if !ok {
-		log.Debug("order", order)
+		log.Debug("handleGetStateRoot", "order", order)
 		return nil, fmt.Errorf("missing or invalid order")
 	}
 
 	rpc, ok := request.Params.Arguments["rpc"]
 	if !ok {
-		log.Debug("rpc", rpc)
+		log.Debug("handleGetStateRoot", "rpc", rpc)
 		return nil, fmt.Errorf("missing or invalid rpc")
 	}
-	log.Debug("order", order, "rpc", rpc)
+	log.Debug("handleGetStateRoot", "order", order, "rpc", rpc)
 	orderNum := int64(0)
 	switch order.(type) {
 	case int64:
@@ -323,15 +328,15 @@ func handleGetStateRoot(
 	case float64:
 		orderNum = int64(order.(float64))
 	default:
-		log.Debug("order", order)
+		log.Debug("handleGetStateRoot", "order", order)
 		return nil, fmt.Errorf("missing or invalid order")
 	}
 	body, err := JsonRpcResponse(rpc.(string), "qng_getStateRoot", []interface{}{orderNum, true})
 	if err != nil {
-		log.Debug("JsonRpcResponse", err)
+		log.Debug("JsonRpcResponse", "error", err)
 		return nil, err
 	}
-	log.Debug("handleGetStateRoot", string(body))
+	log.Debug("handleGetStateRoot", "result", string(body))
 	return mcp.NewToolResultText(string(body)), nil
 }
 
@@ -340,6 +345,7 @@ func main() {
 	flag.StringVar(&transport, "t", "stdio", "Transport type (stdio or sse)")
 	flag.StringVar(&rpcUrl, "rpc", "http://127.0.0.1:8545/", "qng rpc url")
 	flag.StringVar(&logLevel, "loglevel", "info", "Log level (debug, info, warn, error)")
+	flag.StringVar(&currentMcpServer, "mcp", "localhost:8080", "mcp server url")
 	flag.StringVar(
 		&transport,
 		"transport",
@@ -360,7 +366,7 @@ func main() {
 	log.Info("  --rpc            QNG Web3 RPC URL")
 	log.Info("  --loglevel       Log level (debug, info, warn, error)")
 	log.Info("\nExample:")
-	log.Info("  ./qng-mcp -t stdio --rpc http://127.0.0.1:8545/ --loglevel debug")
+	log.Info("  ./qng-mcp -t stdio --rpc http://127.0.0.1:8545/ --loglevel debug --mcp localhost:8080")
 
 	// Print system status
 	log.Info("Starting QNG MCP Server...", "logLevel", logLevel)
@@ -384,7 +390,7 @@ func main() {
 		}
 	case "sse":
 		log.Info("Running in SSE mode...")
-		sseServer := s.ServeSSE("localhost:8080")
+		sseServer := s.ServeSSE(currentMcpServer)
 		log.Info("SSE server listening on :8080")
 		if err := sseServer.Start(":8080"); err != nil {
 			log.Error("Server error: %v", err)
