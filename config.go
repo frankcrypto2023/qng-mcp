@@ -204,7 +204,7 @@ func GetMethods() (QngMethods, error) {
 	    {
 	      "name": "qng_getMempoolCount",
 	      "call": "get_mempool_count",
-	      "desc": "Retrieves the current count of transactions in the memory pool. Returns the number of pending transactions waiting to be included in the next block."
+	      "desc": "Retrieves the current count of transactions in the memory pool. Returns the number of pending transactions waiting to be included in the next block.",
 	      "params": 0
 	    }
 	  ]
